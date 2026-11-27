@@ -44,7 +44,7 @@ test('reporter creates an incident, responder triages and comments @smoke @e2e',
   const title = uniqueTitle('E2E outage')
 
   await login(page, 'reporter@incidenthub.test')
-  await page.getByRole('link', { name: 'Report' }).click()
+  await page.getByRole('link', { name: 'Report', exact: true }).click()
   await page.getByLabel('Title').fill(title)
   await page.getByLabel('Description').fill('Created by Playwright')
   await page.getByLabel('Severity').selectOption('SEV2')
@@ -72,7 +72,7 @@ test('reporter creates an incident, responder triages and comments @smoke @e2e',
 test('invalid status move shows an error @e2e', async ({ page }) => {
   const title = uniqueTitle('E2E lifecycle')
   await login(page, 'responder@incidenthub.test')
-  await page.getByRole('link', { name: 'Report' }).click()
+  await page.getByRole('link', { name: 'Report', exact: true }).click()
   await page.getByLabel('Title').fill(title)
   await page.getByLabel('Description').fill('lifecycle check')
   await page.getByRole('button', { name: 'Submit incident' }).click()

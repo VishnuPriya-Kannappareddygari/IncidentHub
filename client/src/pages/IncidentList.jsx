@@ -72,7 +72,7 @@ export default function IncidentList() {
           </select>
         </label>
         <label>Severity
-          <select value={filters.severity} onChange={(e) => update({ severity: e.target.value })}>
+          <select aria-label="Severity" value={filters.severity} onChange={(e) => update({ severity: e.target.value })}>
             <option value="">All</option>
             {SEVERITIES.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
