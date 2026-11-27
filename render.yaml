@@ -1,38 +1,18 @@
-# Render blueprint. Values marked `sync: false` are entered in the Render dashboard.
+# Single Render web service: the Docker image builds the client and the API serves UI + API.
+# Values marked `sync: false` are entered in the Render dashboard.
 services:
   - type: web
-    name: incidenthub-api
-    runtime: node
-    rootDir: server
+    name: incidenthub
+    runtime: docker
     plan: free
-    buildCommand: npm ci && npx prisma generate && npx prisma migrate deploy
-    startCommand: node src/index.js
+    dockerfilePath: ./Dockerfile
     healthCheckPath: /api/health
     envVars:
-      - key: NODE_ENV
-        value: production
-      - key: NODE_VERSION
-        value: 20
-      - key: DATABASE_URL   # Neon pooled URL (production project/branch)
+      - key: DATABASE_URL   # Neon pooled URL (production branch)
         sync: false
-      - key: DIRECT_URL     # Neon direct URL, used by prisma migrate deploy
+      - key: DIRECT_URL     # Neon direct URL (no -pooler), used by prisma migrate deploy
         sync: false
       - key: JWT_SECRET
         generateValue: true
-      - key: CORS_ORIGIN    # URL of incidenthub-web, e.g. https://incidenthub-web.onrender.com
-        sync: false
       - key: ANTHROPIC_API_KEY  # optional; empty = heuristic agents
-        sync: false
-  - type: web
-    name: incidenthub-web
-    runtime: static
-    rootDir: client
-    buildCommand: npm ci && npm run build
-    staticPublishPath: dist
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
-    envVars:
-      - key: VITE_API_URL   # URL of incidenthub-api, e.g. https://incidenthub-api.onrender.com
         sync: false

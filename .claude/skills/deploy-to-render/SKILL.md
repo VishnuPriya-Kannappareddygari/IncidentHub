@@ -1,28 +1,24 @@
 ---
 name: deploy-to-render
-description: Prepare and verify an IncidentHub deployment on Render (API web service + static site, Neon prod DB). Use when asked to deploy, release, or fix a Render deploy.
+description: Deploy IncidentHub as ONE service (Docker image: Express serves API + built React UI) on Render or any Docker host, with a Neon prod DB. Use when asked to deploy, release, or fix a deploy.
 ---
 
-# Deploy IncidentHub to Render
+# Deploy IncidentHub (single service)
 
-Claude prepares config and checks; the USER triggers deploys, edits Render settings and production env vars. Never seed or run destructive scripts in production; never use `migrate dev` there.
+The root `Dockerfile` builds `client/` (with `VITE_API_URL=""` = same origin) and runs `prisma migrate deploy && node src/index.js` in `server/`. Express serves `client/dist` plus an SPA fallback, so there is no CORS or API-URL wiring. Claude prepares config; the USER creates services, edits host settings and prod env vars. Never seed or run destructive scripts in prod; never use `migrate dev` there.
 
-## Files
-`render.yaml` (blueprint), `.github/workflows/ci.yml` (tests on a TEST Neon branch), `deploy.yml` (calls the Render deploy hook after CI passes on main).
+## Required env vars on the host
+`DATABASE_URL` (Neon pooled, prod branch), `DIRECT_URL` (no `-pooler`), `JWT_SECRET` (random hex), optional `ANTHROPIC_API_KEY`. `PORT` is injected by the host. `NODE_ENV=production` is set in the image.
 
-## Steps (user performs)
-1. Create a separate Neon production project/branch; copy pooled `DATABASE_URL` and direct `DIRECT_URL` (no `-pooler`).
-2. Render -> New -> Blueprint -> pick the GitHub repo. Fill `sync: false` vars: `DATABASE_URL`, `DIRECT_URL`, `CORS_ORIGIN`, `VITE_API_URL`, optional `ANTHROPIC_API_KEY`. `JWT_SECRET` is generated.
-3. Deploy the API first, then set `VITE_API_URL` on the static site to the API URL and deploy it, then set the API's `CORS_ORIGIN` to the site URL and redeploy.
-4. GitHub secrets for CI: `TEST_DATABASE_URL`, `TEST_DIRECT_URL`, `TEST_JWT_SECRET`, `TEST_SEED_ADMIN_PASSWORD`, `RENDER_DEPLOY_HOOK_URL` (Render service -> Settings -> Deploy Hook). If using the hook, turn off Render auto-deploy to avoid double deploys.
+## Any Docker host (Render, Koyeb, Railway, Fly, HF Spaces)
+Point the host at the GitHub repo + `Dockerfile` at the repo root, set the env vars above, health check `/api/health`. Host must route to the port the server reads from `PORT` (default 4000).
 
 ## Verify
-- `GET <api>/api/health` -> 200 (free tier may take ~1 min cold start).
-- UI loads, deep link refresh works (SPA rewrite), login works, create an incident.
-- First admin: register in the UI then promote that user in the prod DB by hand, or run the seed once by hand with a strong prod-only `SEED_ADMIN_PASSWORD`.
-- Roll back by redeploying the previous successful deploy in Render.
+- `GET /api/health` -> 200; `/` and a deep link like `/incidents` return the UI; login works.
+- First admin: register in the UI, then promote that user in the prod DB by hand (or run the seed once by hand with a strong prod-only `SEED_ADMIN_PASSWORD`).
+- Roll back by redeploying the previous successful deploy.
 
 ## Gotchas
-- Server must bind `0.0.0.0` and `process.env.PORT` (it does).
-- A wrong `CORS_ORIGIN` (trailing slash, http vs https) shows as login failing in the browser while curl works.
-- `VITE_API_URL` is baked in at build time: change it, then rebuild the static site.
+- Free tiers sleep when idle: first request is slow (and the SLA sweeper pauses while asleep).
+- Image build was not verified with Docker locally; the single-service serving was tested with `node` against the test DB.
+- Changing `VITE_API_URL` is no longer needed; leave it unset in the Docker build.
