@@ -1,4 +1,5 @@
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+// Empty string (set at build time for single-service hosting) means "same origin"; unset means local dev API.
+const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000'
 const TOKEN_KEY = 'incidenthub_token'
 
 export const tokenStore = {
