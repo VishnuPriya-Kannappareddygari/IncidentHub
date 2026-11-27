@@ -45,6 +45,7 @@ export default function Dashboard() {
       </div>
 
       <div className="stat-grid">
+        <Tile id="stat-total" value={data.totals.total} text="Total incidents" />
         <Tile id="stat-active" value={data.totals.active} text="Active incidents" />
         <Tile id="stat-sla" value={k.slaCompliancePct != null ? `${Math.round(k.slaCompliancePct)}%` : '—'} text="SLA compliance" />
         <Tile id="stat-mtta" value={formatMinutes(k.mttaMinutes)} text="MTTA" />

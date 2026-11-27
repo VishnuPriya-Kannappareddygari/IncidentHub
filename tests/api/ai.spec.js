@@ -49,8 +49,9 @@ test('injection text is accepted and secrets are not echoed @api', async ({ requ
 })
 
 test('full analysis pipeline, runs and feedback @api', async ({ request }) => {
-  const { headers } = await newReporter(request)
-  const incident = await createIncident(request, headers)
+  const reporter = await newReporter(request)
+  const incident = await createIncident(request, reporter.headers)
+  const { headers } = await responderLogin(request) // analyze/runs/feedback are staff-only
   const res = await request.post(`${API}/ai/incidents/${incident.id}/analyze`, { headers })
   expect(res.status()).toBe(200)
   const body = await res.json()
@@ -68,7 +69,7 @@ test('full analysis pipeline, runs and feedback @api', async ({ request }) => {
 })
 
 test('unknown incident and unknown agent @api', async ({ request }) => {
-  const { headers } = await newReporter(request)
+  const { headers } = await responderLogin(request) // staff-only routes: a reporter gets 403
   expect((await request.post(`${API}/ai/incidents/99999999/analyze`, { headers })).status()).toBe(404)
   const incident = await createIncident(request, headers)
   expect([400, 404]).toContain((await request.post(`${API}/ai/incidents/${incident.id}/agents/not-an-agent`, { headers })).status())
@@ -79,7 +80,7 @@ test('agent registry lists six agents @api', async ({ request }) => {
   const res = await request.get(`${API}/ai/agents`, { headers })
   expect(res.status()).toBe(200)
   const body = await res.json()
-  const list = Array.isArray(body) ? body : body.agents
+  const list = Array.isArray(body) ? body : body.items
   expect(list.length).toBeGreaterThanOrEqual(6)
 })
 

@@ -5,6 +5,9 @@ const BASE_URL = process.env.BASE_URL || 'http://localhost:5173'
 const API_URL = process.env.API_URL || 'http://localhost:4000'
 
 export default defineConfig({
+  // Remote Neon DB: ~1-2s per API call, so the 5s default expect timeout is too tight.
+  timeout: 60_000,
+  expect: { timeout: 15_000 },
   fullyParallel: true,
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
