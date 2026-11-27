@@ -1,0 +1,273 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  ADMIN
+  RESPONDER
+  REPORTER
+}
+
+enum Status {
+  OPEN
+  INVESTIGATING
+  MITIGATED
+  RESOLVED
+  CLOSED
+}
+
+enum Severity {
+  SEV1
+  SEV2
+  SEV3
+  SEV4
+}
+
+enum AssetType {
+  SERVER
+  DATABASE
+  NETWORK
+  APPLICATION
+  ENDPOINT
+  CLOUD
+  OTHER
+}
+
+enum AssetStatus {
+  ACTIVE
+  MAINTENANCE
+  RETIRED
+}
+
+enum Criticality {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         Role     @default(REPORTER)
+  isActive     Boolean  @default(true)
+  teamId       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  team          Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  reported      Incident[]      @relation("Reporter")
+  assigned      Incident[]      @relation("Assignee")
+  comments      Comment[]
+  events        IncidentEvent[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+  ownedAssets   Asset[]
+  agentFeedback AgentRun[]
+
+  @@index([teamId])
+  @@map("users")
+}
+
+model Team {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members   User[]
+  incidents Incident[]
+
+  @@map("teams")
+}
+
+// IT asset inventory: the configuration items incidents are raised against.
+model Asset {
+  id          String      @id @default(cuid())
+  name        String
+  assetTag    String      @unique
+  type        AssetType   @default(OTHER)
+  status      AssetStatus @default(ACTIVE)
+  criticality Criticality @default(MEDIUM)
+  environment String      @default("production")
+  location    String?
+  description String?
+  ownerId     String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  owner     User?      @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  incidents Incident[]
+
+  @@index([type])
+  @@index([status])
+  @@index([ownerId])
+  @@map("assets")
+}
+
+model Incident {
+  id              Int       @id @default(autoincrement())
+  title           String
+  description     String
+  status          Status    @default(OPEN)
+  severity        Severity
+  category        String?
+  reporterId      String
+  assigneeId      String?
+  teamId          String?
+  assetId         String?
+  respondedAt     DateTime?
+  resolvedAt      DateTime?
+  responseDueAt   DateTime?
+  resolveDueAt    DateTime?
+  slaWarnedAt     DateTime?
+  slaBreachedAt   DateTime?
+  escalationLevel Int       @default(0)
+  aiSummary       String?
+  rootCause       String?
+  resolutionNotes String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  reporter  User            @relation("Reporter", fields: [reporterId], references: [id])
+  assignee  User?           @relation("Assignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  team      Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  asset     Asset?          @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  comments  Comment[]
+  events    IncidentEvent[]
+  agentRuns AgentRun[]
+
+  @@index([status])
+  @@index([severity])
+  @@index([category])
+  @@index([reporterId])
+  @@index([assigneeId])
+  @@index([teamId])
+  @@index([assetId])
+  @@index([createdAt])
+  @@index([resolveDueAt])
+  @@map("incidents")
+}
+
+model Comment {
+  id         String   @id @default(cuid())
+  incidentId Int
+  authorId   String
+  body       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  author   User     @relation(fields: [authorId], references: [id])
+
+  @@index([incidentId])
+  @@map("comments")
+}
+
+// Audit trail: one row per meaningful change to an incident. actorId is null for system events (SLA sweeps).
+model IncidentEvent {
+  id         String   @id @default(cuid())
+  incidentId Int
+  actorId    String?
+  type       String // CREATED | STATUS_CHANGED | SEVERITY_CHANGED | ASSIGNED | EDITED | COMMENTED | ACKNOWLEDGED | ESCALATED | SLA_WARNING | SLA_BREACHED | AI_ANALYZED | CATEGORY_CHANGED | RCA_UPDATED | RESOLUTION_UPDATED | ASSET_LINKED | TEAM_CHANGED
+  data       Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  actor    User?    @relation(fields: [actorId], references: [id])
+
+  @@index([incidentId])
+  @@index([createdAt])
+  @@map("incident_events")
+}
+
+model Notification {
+  id         String    @id @default(cuid())
+  userId     String
+  type       String // SLA_WARNING | SLA_BREACH | ESCALATION | ASSIGNED | AI | SYSTEM
+  title      String
+  body       String?
+  incidentId Int?
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+// Non-incident audit trail: user/team/asset administration, exports, evaluations.
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String
+  entity    String
+  entityId  String?
+  data      Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// One row per agent execution: the governance audit trail and the observability data source.
+model AgentRun {
+  id            String   @id @default(cuid())
+  traceId       String
+  agent         String
+  incidentId    Int?
+  actorId       String?
+  source        String // claude | heuristic | heuristic-fallback
+  model         String?
+  status        String // ok | error | blocked
+  latencyMs     Int      @default(0)
+  tokensIn      Int      @default(0)
+  tokensOut     Int      @default(0)
+  flags         String[]
+  inputPreview  String?
+  output        Json?
+  error         String?
+  accepted      Boolean?
+  rating        Int?
+  feedbackNote  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  incident Incident? @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+  actor    User?     @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([agent, createdAt])
+  @@index([incidentId])
+  @@index([traceId])
+  @@map("agent_runs")
+}
+
+model AgentEvalRun {
+  id        String   @id @default(cuid())
+  mode      String // heuristic | live
+  overall   Float
+  results   Json
+  actorId   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdAt])
+  @@map("agent_eval_runs")
+}

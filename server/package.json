@@ -1,0 +1,30 @@
+{
+  "name": "incidenthub-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "lint": "node --check src/index.js && node --check src/app.js",
+    "db:seed": "node prisma/seed.js",
+    "eval": "node scripts/run-evals.js",
+    "eval:live": "node scripts/run-evals.js --live"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.0.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "prisma": "^6.0.0"
+  }
+}
