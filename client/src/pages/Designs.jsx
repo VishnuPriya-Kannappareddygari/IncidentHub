@@ -4,9 +4,12 @@ import { useState } from 'react'
 // A screen whose PNG is missing shows a link to its frame in Figma instead; drop the
 // PNG into public/designs with the listed file name and it appears automatically.
 const FIGMA_FILE = 'https://www.figma.com/design/LybtewG0oxhBT1jnbO0YbY'
+const COMMUNITY_LOGIN_FILE = 'https://www.figma.com/design/VYLCFFo5UlalunHB8zfaGP'
 
 const SCREENS = [
   { file: 'login.png', title: 'Log in', route: '/login', node: '1-2' },
+  // Alternative login from a Figma Community file ("Login Page ✨"); check its licence before reuse.
+  { file: 'login-community.png', title: 'Log in (Community alternative)', route: '/login', node: '138-14', fileUrl: COMMUNITY_LOGIN_FILE },
   { file: 'register.png', title: 'Register', route: '/register', node: '5-2' },
   { file: 'dashboard.png', title: 'Dashboard', route: '/', node: '5-220' },
   { file: 'incidents.png', title: 'Incidents', route: '/incidents', node: '5-29' },
@@ -23,7 +26,7 @@ const SCREENS = [
 
 function ScreenCard({ s }) {
   const [missing, setMissing] = useState(false)
-  const figmaUrl = `${FIGMA_FILE}?node-id=${s.node}`
+  const figmaUrl = `${s.fileUrl || FIGMA_FILE}?node-id=${s.node}`
   return (
     <section className="card" aria-label={s.title}>
       <div className="row between"><h2>{s.title}</h2><span className="muted">{s.route}</span></div>
